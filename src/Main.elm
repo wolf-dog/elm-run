@@ -2,7 +2,10 @@ module Main exposing (main)
 
 import Playground
     exposing
-        ( circle
+        ( Computer
+        , Number
+        , Shape
+        , circle
         , game
         , move
         , moveY
@@ -15,17 +18,26 @@ import Playground
 -- MAIN
 
 
+type alias Memory =
+    { height : Number
+    , velocity : Number
+    }
+
+
 main =
     game
         view
         update
-        0
+        { height = 0
+        , velocity = 0
+        }
 
 
 
 -- VIEW
 
 
+view : Computer -> Memory -> List Shape
 view computer memory =
     let
         width =
@@ -40,7 +52,7 @@ view computer memory =
     [ rectangle (rgb 64 64 64) width 2
         |> moveY groundPosition
     , circle (rgb 20 20 20) characterSize
-        |> move (0 - width / 2 + 100) (groundPosition + characterSize)
+        |> move (0 - width / 2 + 100) (groundPosition + characterSize + memory.height)
     ]
 
 
@@ -48,5 +60,20 @@ view computer memory =
 -- UPDATE
 
 
+update : Computer -> Memory -> Memory
 update computer memory =
-    0
+    let
+        velocity =
+            if memory.height > 0 then
+                memory.velocity - 1.3
+
+            else if computer.keyboard.up then
+                20
+
+            else
+                0
+
+        height =
+            max 0 (memory.height + velocity)
+    in
+    { memory | height = height, velocity = velocity }
