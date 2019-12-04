@@ -96,6 +96,11 @@ view computer memory =
 -- UPDATE
 
 
+type EnemyState
+    = Working
+    | Returning
+
+
 update : Computer -> Memory -> Memory
 update computer memory =
     let
@@ -122,7 +127,24 @@ update computer memory =
 updateEnemy : Screen -> Enemy -> Enemy
 updateEnemy screen enemy =
     let
+        state =
+            getEnemyState screen enemy
+
         right =
-            enemy.right + 5
+            case state of
+                Working ->
+                    enemy.right + 5
+
+                Returning ->
+                    0
     in
     { enemy | right = right }
+
+
+getEnemyState : Screen -> Enemy -> EnemyState
+getEnemyState screen enemy =
+    if getEnemyX screen enemy <= screen.left then
+        Returning
+
+    else
+        Working
