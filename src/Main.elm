@@ -22,7 +22,7 @@ import Playground
 type alias Memory =
     { height : Number
     , velocity : Number
-    , enemy : Enemy
+    , enemies : List Enemy
     }
 
 
@@ -38,7 +38,12 @@ main =
         update
         { height = 0
         , velocity = 0
-        , enemy = { right = 0, height = 0 }
+        , enemies =
+            [ { right = 0, height = 0 }
+            , { right = -300, height = 0 }
+            , { right = -600, height = 0 }
+            , { right = -800, height = 0 }
+            ]
         }
 
 
@@ -85,11 +90,16 @@ view : Computer -> Memory -> List Shape
 view computer memory =
     [ rectangle (rgb 64 64 64) computer.screen.width 2
         |> moveY (getGroundY computer.screen)
-    , rectangle (rgb 64 64 64) getEnemySize.x getEnemySize.y
-        |> move (getEnemyX computer.screen memory.enemy) (getEnemyY computer.screen memory.enemy)
-    , circle (rgb 20 20 20) getPlayerSize
-        |> move (getPlayerX computer.screen) (getPlayerY computer.screen memory.height)
     ]
+        ++ List.map
+            (\enemy ->
+                rectangle (rgb 64 64 64) getEnemySize.x getEnemySize.y
+                    |> move (getEnemyX computer.screen enemy) (getEnemyY computer.screen enemy)
+            )
+            memory.enemies
+        ++ [ circle (rgb 20 20 20) getPlayerSize
+                |> move (getPlayerX computer.screen) (getPlayerY computer.screen memory.height)
+           ]
 
 
 
@@ -116,11 +126,14 @@ update computer memory =
 
         height =
             max 0 (memory.height + velocity)
+
+        enemies =
+            List.map (updateEnemy computer.screen) memory.enemies
     in
     { memory
         | height = height
         , velocity = velocity
-        , enemy = updateEnemy computer.screen memory.enemy
+        , enemies = enemies
     }
 
 
