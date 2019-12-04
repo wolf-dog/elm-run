@@ -12,6 +12,8 @@ import Playground
         , moveY
         , rectangle
         , rgb
+        , scale
+        , words
         )
 
 
@@ -23,6 +25,7 @@ type alias Memory =
     { height : Number
     , velocity : Number
     , enemies : List Enemy
+    , colliding : Bool
     }
 
 
@@ -44,6 +47,7 @@ main =
             , { right = -600, height = 0 }
             , { right = -800, height = 0 }
             ]
+        , colliding = False
         }
 
 
@@ -99,6 +103,13 @@ view computer memory =
             memory.enemies
         ++ [ circle (rgb 20 20 20) getPlayerSize
                 |> move (getPlayerX computer.screen) (getPlayerY computer.screen memory.height)
+           , scale 5 <|
+                words (rgb 20 20 20) <|
+                    if memory.colliding then
+                        "GAME OVER"
+
+                    else
+                        ""
            ]
 
 
@@ -130,11 +141,16 @@ update computer memory =
         enemies =
             List.map (updateEnemy computer.screen) memory.enemies
     in
-    { memory
-        | height = height
-        , velocity = velocity
-        , enemies = enemies
-    }
+    if memory.colliding then
+        memory
+
+    else
+        { memory
+            | height = height
+            , velocity = velocity
+            , enemies = enemies
+            , colliding = isColliding computer.screen height enemies
+        }
 
 
 updateEnemy : Screen -> Enemy -> Enemy
@@ -161,3 +177,27 @@ getEnemyState screen enemy =
 
     else
         Working
+
+
+isColliding : Screen -> Number -> List Enemy -> Bool
+isColliding screen height enemies =
+    let
+        playerX =
+            getPlayerX screen
+
+        playerY =
+            getPlayerY screen height
+    in
+    not <|
+        List.isEmpty <|
+            List.filter (\enemy -> isCollidingWithEnemy screen playerX playerY enemy) enemies
+
+
+isCollidingWithEnemy : Screen -> Number -> Number -> Enemy -> Bool
+isCollidingWithEnemy screen playerX playerY enemy =
+    abs (playerX - getEnemyX screen enemy)
+        < getEnemySize.x
+        / 2
+        && abs (playerY - getEnemyY screen enemy)
+        < getEnemySize.y
+        / 2
