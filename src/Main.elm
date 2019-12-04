@@ -26,6 +26,7 @@ type alias Memory =
     , velocity : Number
     , enemies : List Enemy
     , colliding : Bool
+    , score : Int
     }
 
 
@@ -48,6 +49,7 @@ main =
             , { right = -800, height = 0 }
             ]
         , colliding = False
+        , score = 0
         }
 
 
@@ -90,6 +92,27 @@ getEnemyY screen enemy =
     getGroundY screen + getEnemySize.y / 2 + enemy.height
 
 
+getMessages : Screen -> Memory -> List Shape
+getMessages screen memory =
+    let
+        score =
+            (words (rgb 20 20 20) <|
+                "Score: "
+                    ++ String.fromInt (memory.score // 10)
+            )
+                |> move 0 (screen.top - 50)
+
+        gameOver =
+            scale 5 <|
+                words (rgb 20 20 20) "GAME OVER"
+    in
+    if memory.colliding then
+        [ score, gameOver ]
+
+    else
+        [ score ]
+
+
 view : Computer -> Memory -> List Shape
 view computer memory =
     [ rectangle (rgb 64 64 64) computer.screen.width 2
@@ -103,14 +126,8 @@ view computer memory =
             memory.enemies
         ++ [ circle (rgb 20 20 20) getPlayerSize
                 |> move (getPlayerX computer.screen) (getPlayerY computer.screen memory.height)
-           , scale 5 <|
-                words (rgb 20 20 20) <|
-                    if memory.colliding then
-                        "GAME OVER"
-
-                    else
-                        ""
            ]
+        ++ getMessages computer.screen memory
 
 
 
@@ -150,6 +167,7 @@ update computer memory =
             , velocity = velocity
             , enemies = enemies
             , colliding = isColliding computer.screen height enemies
+            , score = memory.score + 1
         }
 
 
