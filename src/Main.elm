@@ -52,20 +52,25 @@ type alias Enemy =
     }
 
 
+getInitialMemory : Memory
+getInitialMemory =
+    { height = 0
+    , velocity = 0
+    , enemies =
+        { right = 0, height = 0, state = Working }
+            :: List.repeat 10 { right = 0, height = 0, state = Idle }
+    , playing = False
+    , colliding = False
+    , score = 0
+    , lastEmployedAt = 0
+    }
+
+
 main =
     game
         view
         update
-        { height = 0
-        , velocity = 0
-        , enemies =
-            { right = 0, height = 0, state = Working }
-                :: List.repeat 10 { right = 0, height = 0, state = Idle }
-        , playing = False
-        , colliding = False
-        , score = 0
-        , lastEmployedAt = 0
-        }
+        getInitialMemory
 
 
 
@@ -124,12 +129,16 @@ getMessages screen memory =
         gameOver =
             scale 5 <|
                 words (rgb 20 20 20) "GAME OVER"
+
+        restart =
+            words (rgb 20 20 20) "Press Enter Key to Restart"
+                |> move 0 (screen.bottom + screen.height / 3)
     in
     if not memory.playing then
         [ score, start ]
 
     else if memory.colliding then
-        [ score, gameOver ]
+        [ score, gameOver, restart ]
 
     else
         [ score ]
@@ -193,8 +202,15 @@ update computer memory =
             else
                 startPlaying computer.keyboard
     in
-    if not playing || memory.colliding then
+    if not playing then
         memory
+
+    else if memory.colliding then
+        if computer.keyboard.enter then
+            getInitialMemory
+
+        else
+            memory
 
     else
         { memory
