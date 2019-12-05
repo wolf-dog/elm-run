@@ -1,8 +1,10 @@
 module Main exposing (main)
 
+import List.Extra exposing (findIndex)
 import Playground
     exposing
         ( Computer
+        , Keyboard
         , Number
         , Screen
         , Shape
@@ -13,6 +15,7 @@ import Playground
         , rectangle
         , rgb
         , scale
+        , spin
         , words
         )
 
@@ -21,18 +24,31 @@ import Playground
 -- MAIN
 
 
+type alias Enemies =
+    List Enemy
+
+
 type alias Memory =
     { height : Number
     , velocity : Number
-    , enemies : List Enemy
+    , enemies : Enemies
     , colliding : Bool
+    , playing : Bool
     , score : Int
+    , lastEmployedAt : Int
     }
+
+
+type EnemyState
+    = Working
+    | Returning
+    | Idle
 
 
 type alias Enemy =
     { right : Number
     , height : Number
+    , state : EnemyState
     }
 
 
@@ -43,13 +59,12 @@ main =
         { height = 0
         , velocity = 0
         , enemies =
-            [ { right = 0, height = 0 }
-            , { right = -300, height = 0 }
-            , { right = -600, height = 0 }
-            , { right = -800, height = 0 }
-            ]
+            { right = 0, height = 0, state = Working }
+                :: List.repeat 10 { right = 0, height = 0, state = Idle }
+        , playing = False
         , colliding = False
         , score = 0
+        , lastEmployedAt = 0
         }
 
 
@@ -102,11 +117,18 @@ getMessages screen memory =
             )
                 |> move 0 (screen.top - 50)
 
+        start =
+            scale 3 <|
+                words (rgb 20 20 20) "Press Enter Key to Start"
+
         gameOver =
             scale 5 <|
                 words (rgb 20 20 20) "GAME OVER"
     in
-    if memory.colliding then
+    if not memory.playing then
+        [ score, start ]
+
+    else if memory.colliding then
         [ score, gameOver ]
 
     else
@@ -134,9 +156,15 @@ view computer memory =
 -- UPDATE
 
 
-type EnemyState
-    = Working
-    | Returning
+type alias UpdatedEnemies =
+    { enemies : Enemies
+    , lastEmployedAt : Int
+    }
+
+
+getScrollSpeed : Number
+getScrollSpeed =
+    5
 
 
 update : Computer -> Memory -> Memory
@@ -156,19 +184,33 @@ update computer memory =
             max 0 (memory.height + velocity)
 
         enemies =
-            List.map (updateEnemy computer.screen) memory.enemies
+            updateEnemies computer.screen memory computer.time
+
+        playing =
+            if memory.playing then
+                memory.playing
+
+            else
+                startPlaying computer.keyboard
     in
-    if memory.colliding then
+    if not playing || memory.colliding then
         memory
 
     else
         { memory
             | height = height
             , velocity = velocity
-            , enemies = enemies
-            , colliding = isColliding computer.screen height enemies
+            , enemies = enemies.enemies
+            , colliding = isColliding computer.screen height enemies.enemies
+            , playing = playing
             , score = memory.score + 1
+            , lastEmployedAt = enemies.lastEmployedAt
         }
+
+
+updateEnemies : Screen -> Memory -> Playground.Time -> UpdatedEnemies
+updateEnemies screen memory time =
+    List.map (updateEnemy screen) memory.enemies |> employEnemy memory time
 
 
 updateEnemy : Screen -> Enemy -> Enemy
@@ -180,24 +222,76 @@ updateEnemy screen enemy =
         right =
             case state of
                 Working ->
-                    enemy.right + 5
+                    enemy.right + getScrollSpeed
 
                 Returning ->
                     0
+
+                Idle ->
+                    0
     in
-    { enemy | right = right }
+    { enemy | right = right, state = state }
 
 
 getEnemyState : Screen -> Enemy -> EnemyState
 getEnemyState screen enemy =
-    if getEnemyX screen enemy <= screen.left then
-        Returning
+    case enemy.state of
+        Working ->
+            if getEnemyX screen enemy <= screen.left then
+                Returning
+
+            else
+                Working
+
+        Returning ->
+            Idle
+
+        Idle ->
+            Idle
+
+
+employEnemy : Memory -> Playground.Time -> Enemies -> UpdatedEnemies
+employEnemy memory time enemies =
+    let
+        firstIdleEnemyIndex =
+            findIndex (\enemy -> enemy.state == Idle) enemies
+    in
+    if
+        memory.score
+            > memory.lastEmployedAt
+            + 31
+            && memory.score
+            + (round <| abs <| cos (spin 0.1 time) * 150)
+            > memory.lastEmployedAt
+            + 181
+    then
+        case firstIdleEnemyIndex of
+            Just firstIndex ->
+                { enemies =
+                    List.indexedMap
+                        (\index enemy ->
+                            if index == firstIndex then
+                                { enemy | state = Working }
+
+                            else
+                                enemy
+                        )
+                        enemies
+                , lastEmployedAt = memory.score
+                }
+
+            Nothing ->
+                { enemies = enemies
+                , lastEmployedAt = memory.lastEmployedAt
+                }
 
     else
-        Working
+        { enemies = enemies
+        , lastEmployedAt = memory.lastEmployedAt
+        }
 
 
-isColliding : Screen -> Number -> List Enemy -> Bool
+isColliding : Screen -> Number -> Enemies -> Bool
 isColliding screen height enemies =
     let
         playerX =
@@ -219,3 +313,12 @@ isCollidingWithEnemy screen playerX playerY enemy =
         && abs (playerY - getEnemyY screen enemy)
         < getEnemySize.y
         / 2
+
+
+startPlaying : Keyboard -> Bool
+startPlaying keyboard =
+    if keyboard.enter then
+        True
+
+    else
+        False
